@@ -147,6 +147,7 @@ export function playAudioData(audioData: ArrayBuffer): { audio: HTMLAudioElement
 export class AudioPlayer {
   private audio: HTMLAudioElement;
   private isMobileEnv: boolean;
+  private useMSE: boolean = false;
   // Mobile (MSE)
   private mediaSource: MediaSource | null = null;
   private sourceBuffer: SourceBuffer | null = null;
@@ -161,8 +162,9 @@ export class AudioPlayer {
     this.audio = el;
     this.isMobileEnv = isMobile();
   const mseOk = canUseWebmOpusMSE();
+  this.useMSE = !!mseOk;
 
-  if (mseOk) {
+  if (this.useMSE) {
       const ms = new MediaSource();
       this.mediaSource = ms;
       const url = URL.createObjectURL(ms);
@@ -205,7 +207,7 @@ export class AudioPlayer {
   }
 
   appendChunk(chunk: ArrayBuffer) {
-    if (this.isMobileEnv) {
+  if (this.useMSE) {
       if (!this.sourceBuffer) {
         this.pendingChunks.push(chunk);
         return;
@@ -246,7 +248,7 @@ export class AudioPlayer {
   }
 
   async endStream() {
-    if (this.isMobileEnv) {
+  if (this.useMSE) {
       try {
         // Flush any remaining pending chunks first
         this.flushPending();
