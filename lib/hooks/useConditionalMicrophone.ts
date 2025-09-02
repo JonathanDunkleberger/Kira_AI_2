@@ -47,14 +47,25 @@ export function useConditionalMicrophone(
       // Create a destination node to feed a MediaRecorder for encoding
       const dest = ctx.createMediaStreamDestination();
       encoderSourceRef.current = dest;
-      const mr = new MediaRecorder(dest.stream, { mimeType: 'audio/webm' });
+      // Choose a supported MIME type for iOS compatibility
+      let chosenMime: string | undefined = undefined;
+      try {
+        if (typeof (window as any).MediaRecorder !== 'undefined' && typeof (MediaRecorder as any).isTypeSupported === 'function') {
+          if ((MediaRecorder as any).isTypeSupported('audio/webm')) {
+            chosenMime = 'audio/webm';
+          } else if ((MediaRecorder as any).isTypeSupported('audio/mp4')) {
+            chosenMime = 'audio/mp4';
+          }
+        }
+      } catch {}
+      const mr = chosenMime ? new MediaRecorder(dest.stream, { mimeType: chosenMime }) : new MediaRecorder(dest.stream);
       mediaRecorderRef.current = mr;
       encoderStreamRef.current = dest.stream;
       encodedChunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data && e.data.size) encodedChunksRef.current.push(e.data); };
       mr.onstop = () => {
         try {
-          const blob = new Blob(encodedChunksRef.current, { type: 'audio/webm' });
+          const blob = new Blob(encodedChunksRef.current, { type: chosenMime || undefined });
           if (blob.size) onUtterance(blob);
         } finally {
           encodedChunksRef.current = [];

@@ -2,6 +2,18 @@ function isMobile(): boolean {
   if (typeof navigator === 'undefined') return false;
   return /Mobi/i.test(navigator.userAgent || '');
 }
+
+// Returns true if browser supports MSE with WebM Opus
+export function canUseWebmOpusMSE(): boolean {
+  try {
+    // Guard for environments without window/MediaSource
+    const MS: typeof MediaSource | undefined = (typeof window !== 'undefined' ? (window as any).MediaSource : undefined);
+    if (!MS || typeof MS.isTypeSupported !== 'function') return false;
+    return MS.isTypeSupported('audio/webm; codecs="opus"') || MS.isTypeSupported('audio/webm;codecs=opus');
+  } catch {
+    return false;
+  }
+}
 export async function playMp3Base64(b64: string, onEnd?: () => void) {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
@@ -148,8 +160,9 @@ export class AudioPlayer {
     if (!el) throw new Error('Persistent audio element #tts-player not found');
     this.audio = el;
     this.isMobileEnv = isMobile();
+  const mseOk = canUseWebmOpusMSE();
 
-    if (this.isMobileEnv) {
+  if (mseOk) {
       const ms = new MediaSource();
       this.mediaSource = ms;
       const url = URL.createObjectURL(ms);
